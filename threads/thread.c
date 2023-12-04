@@ -790,7 +790,8 @@ bool compare_donation_priority(const struct list_elem *a, const struct list_elem
 		return 0;
 }
 
-/* recent_cpu와 nice값을 이용하여 priority를 계산 */
+/* recent_cpu와 
+값을 이용하여 priority를 계산 */
 void mlfqs_priority(struct thread *t)
 {
     if (t != idle_thread) 
