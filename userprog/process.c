@@ -164,8 +164,8 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
+	
 	// char *save_ptr;
-
 	// for (file_name = strtok_r (f_name, " ", &save_ptr); file_name != NULL;
     // file_name = strtok_r (NULL, " ", &save_ptr));
     // printf ("'%s'\n", file_name);
