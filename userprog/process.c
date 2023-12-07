@@ -164,6 +164,11 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
+	// char *save_ptr;
+
+	// for (file_name = strtok_r (f_name, " ", &save_ptr); file_name != NULL;
+    // file_name = strtok_r (NULL, " ", &save_ptr));
+    // printf ("'%s'\n", file_name);
 
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -178,12 +183,13 @@ process_exec (void *f_name) {
 
 	/* And then load the binary */
 	success = load (file_name, &_if);
+	
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
 		return -1;
-
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -201,6 +207,9 @@ process_exec (void *f_name) {
  * does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) {
+	int cnt = 9999999999*1;
+	while(cnt != 0)
+		cnt--;
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
@@ -316,10 +325,58 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes,
 		bool writable);
 
+int total_length = 0;
+
 /* Loads an ELF executable from FILE_NAME into the current thread.
  * Stores the executable's entry point into *RIP
  * and its initial stack pointer into *RSP.
  * Returns true if successful, false otherwise. */
+
+void argument_stack(char **parse, int count, struct intr_frame *if_) {
+	uintptr_t if_rsp = if_->rsp;
+	char *address[64] ;
+	// printf("%p\n",if_rsp);
+	for (int i = count - 1; i >= 0; i--) {
+		if_rsp -= strlen(parse[i])+1;
+		// printf("%d\n",strlen(parse[i])+1);
+		// printf("%s\n",parse[i]);
+		// printf("%p\n",if_rsp);
+		strlcpy(if_rsp, parse[i],strlen(parse[i])+1);
+		address[i] = &if_rsp;
+		};
+
+	int padding = 8 - total_length % 8;
+	if_rsp -= padding;
+	strlcpy(if_rsp, "\0" ,padding);
+	// printf("%p\n",if_rsp);
+
+	if_rsp -= 8;
+	strlcpy(if_rsp, "\0" , 8);
+	// printf("%p\n",if_rsp);
+	for (int i = count - 1; i >=0 ; i--) {
+		if_rsp -= 8;
+		strlcpy(if_rsp, address[i],8);
+		// printf("%p\n",&parse[i]);
+		// printf("%p\n",if_rsp);
+		};
+
+	if_rsp -= 8;
+	strlcpy(if_rsp, "\0" , 8);
+	// printf("%p\n",if_rsp);
+	//argc
+	// if_rsp -= snprintf(NULL, 0, "%d", count) + 1;
+	// snprintf(if_rsp, strlen(if_rsp)+1, "%d", count);
+
+	if_->R.rsi = &parse;
+	if_->R.rdi = count;
+	// if_rsp -= count;
+	// strlcpy(if_rsp, count, strlen(count)+1);
+	// if_rsp -= strlen(count)+1;
+	// strlcpy(if_rsp,  ,  );
+	// printf("============endr===========\n");
+	if_->rsp = if_rsp;
+}
+
 static bool
 load (const char *file_name, struct intr_frame *if_) {
 	struct thread *t = thread_current ();
@@ -328,7 +385,21 @@ load (const char *file_name, struct intr_frame *if_) {
 	off_t file_ofs;
 	bool success = false;
 	int i;
+	char *save_ptr, *token;
+	int idx = 0;
+	char *argv[64];
 
+	// printf("---------------load------------------");
+
+	for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
+    token = strtok_r (NULL, " ", &save_ptr)) {
+		argv[idx] = token;
+		total_length += strlen(argv[idx])+1;
+		idx ++;
+	}
+	
+	// printf("---------------parsing------------------");
+	// printf(argv[0]);
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
@@ -336,12 +407,12 @@ load (const char *file_name, struct intr_frame *if_) {
 	process_activate (thread_current ());
 
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (argv[0]);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
 	}
-
+	// printf("=================file open===========");
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
 			|| memcmp (ehdr.e_ident, "\177ELF\2\1\1", 7)
@@ -413,10 +484,11 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
+	// printf("prearg");
+	argument_stack(argv,idx,if_);
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-
 	success = true;
 
 done:
@@ -424,7 +496,6 @@ done:
 	file_close (file);
 	return success;
 }
-
 
 /* Checks whether PHDR describes a valid, loadable segment in
  * FILE and returns true if so, false otherwise. */
