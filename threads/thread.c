@@ -34,6 +34,14 @@ static struct list ready_list;
 /* List of processes in THREAD_BLOCKED state, that is, processes
    that are Waiting for an event to trigger. */
 static struct list sleep_list;
+/* mlfqs */
+void mlfqs_priority(struct thread *t);
+void mlfqs_recent_cpu(struct thread *t);
+void mlfqs_load_avg(void);
+void mlfqs_increment(void);
+void mlfqs_recalc_priority(void);
+void mlfqs_recalc_recent_cpu(void);
+
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -322,7 +330,7 @@ void thread_awake(int64_t ticks)
 
 void thread_preemption(void)
 {
-	if (!list_empty(&ready_list))
+	if (!list_empty(&ready_list) && !intr_context)
 	{
 		struct thread *top_pri = list_begin(&ready_list);
 		if (compare_thread_priority(top_pri, &thread_current()->elem, NULL))
