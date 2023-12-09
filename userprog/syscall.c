@@ -192,7 +192,7 @@ int syscall_write (int fd UNUSED, const void *buffer, unsigned size){
     if (fd == 1){
         putbuf(buffer,size);
         return size;
-    }else if (2<=fd && fd<64)
+    }else if (2<=fd && fd<64 && thread_current()->fd_table[fd] != NULL)
     {
         off_t written_byte = file_write(thread_current()->fd_table[fd],buffer,size);
         return written_byte;
@@ -210,7 +210,13 @@ unsigned syscall_tell (int fd){
 	return file_position;
 }
 void syscall_close (int fd){
-    file_close(thread_current()->fd_table[fd]);
+    if (fd == 0 || fd == 1)
+        syscall_exit(-1);
+    else if (2<=fd && fd<64 && thread_current()->fd_table[fd] != NULL) {
+        file_close(thread_current()->fd_table[fd]);
+        thread_current()->fd_table[fd] = NULL;
+    }else
+        syscall_exit(-1);
 }
 // int syscall_dup2(int oldfd, int newfd){
 
