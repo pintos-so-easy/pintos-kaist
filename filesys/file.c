@@ -20,6 +20,7 @@ file_open (struct inode *inode) {
 		file->inode = inode;
 		file->pos = 0;
 		file->deny_write = false;
+		// printf("%p\n",file);
 		return file;
 	} else {
 		inode_close (inode);

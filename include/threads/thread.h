@@ -104,11 +104,16 @@ struct thread
 	struct list_elem donation_elem; 
 
 	/* mlfqs */
-	int nice; 	int recent_cpu;
+	int nice; 	
+	int recent_cpu;
 	struct list_elem allelem; 
+
+	int sys_status;
+	struct file *fd_table[64];
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
+	
 	uint64_t *pml4; /* Page map level 4 */
 #endif
 #ifdef VM
