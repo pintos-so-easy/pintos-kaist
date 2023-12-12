@@ -551,6 +551,9 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->init_priority = priority;
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
+	list_init(&t->child);
+	sema_init(&t->fork_sema,0);
+	sema_init(&t->wait_sema,0);
 
 	/* mlfqs */
 	t->nice = NICE_DEFAULT;

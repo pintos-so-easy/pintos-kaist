@@ -18,6 +18,7 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -26,6 +27,11 @@ static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
 static void __do_fork(void *);
+struct thread *get_child_process(tid_t child_tid);
+int process_wait_child(tid_t child_pid);
+
+
+
 
 /* General process initializer for initd and other process. */
 static void
@@ -130,6 +136,8 @@ duplicate_pte(uint64_t *pte, void *va, void *aux)
  * Hint) parent->tf does not hold the userland context of the process.
  *       That is, you are required to pass second argument of process_fork to
  *       this function. */
+
+
 static void
 __do_fork(void *aux)
 {
@@ -137,12 +145,11 @@ __do_fork(void *aux)
 	struct thread *parent = (struct thread *)aux;
 	struct thread *current = thread_current();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if = &parent->tf;
+	// struct intr_frame *parent_if = &parent->pf;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
-	memcpy(&if_, parent_if, sizeof(struct intr_frame));
-
+	memcpy(&if_, &parent->pf, sizeof(struct intr_frame));
 	current->tf = if_;
 
 	/* 2. Duplicate PT */
@@ -156,22 +163,24 @@ __do_fork(void *aux)
 	if (!supplemental_page_table_copy(&current->spt, &parent->spt))
 		goto error;
 #else
-	if (!pml4_for_each(parent->pml4, duplicate_pte, parent))
+	if (!pml4_for_each(&parent->pml4, duplicate_pte, parent)) // &parent->pml4..?
 		goto error;
 #endif
 
-	struct file **p_fd_table = parent->fd_table;
-	struct file **c_fd_table = malloc(sizeof(struct file*) * 64);
+	// struct file **p_fd_table = parent->fd_table;
+	// struct file **c_fd_table = malloc(sizeof(struct file*) * 64);
 
 	for (int i = 0; i < 64; i++) {
-		if (p_fd_table[i] != NULL) {
-			c_fd_table[i] = file_duplicate(p_fd_table[i]);
+		if (parent->fd_table[i] != NULL) {
+			current->fd_table[i] = file_duplicate(parent->fd_table[i]);
 		} else {
-			c_fd_table[i] = NULL;
+			current->fd_table[i] = NULL;
 		}
 	}
+	
+	current->parent = parent;
+	list_push_back(&parent->child,&current->child_elem);
 
-	*current->fd_table = c_fd_table ;
 
 	/* TODO: Your code goes here.
 	 * TODO: Hint) To duplicate the file object, use `file_duplicate`
@@ -184,6 +193,8 @@ __do_fork(void *aux)
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret(&if_);
+		sema_up(&current->fork_sema);
+		current->tf.R.rax = 0;
 error:
 	thread_exit();
 }
@@ -205,7 +216,6 @@ int process_exec(void *f_name)
 
 	/* We first kill the current context */
 	process_cleanup();
-
 	/* And then load the binary */
 	success = load(file_name, &_if);
 
@@ -230,19 +240,46 @@ int process_exec(void *f_name)
  *
  * This function will be implemented in problem 2-2.  For now, it
  * does nothing. */
+
+
 int process_wait(tid_t child_tid UNUSED)
-{
-	int time = 999999999*2;
+{	
+	// while(1) 
+	// return -1;
 
-	while (time != 0)
-	{
-		time--;
-	}
+	printf("들어왔니");
+	struct thread *child_thread = get_child_process(child_tid);
+    if (child_thread == NULL)
+        return -1;
+	
+	// sema_down(&child_thread->wait_sema);
 
-	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
-	 * XXX:       to add infinite loop here before
-	 * XXX:       implementing the process_wait. */
+	// // list_remove(&(child_thread->child_elem));
+
+	// return thread_current()->child_sys_status;
+
 	return -1;
+}
+
+struct thread *get_child_process(tid_t child_tid)
+{
+
+	printf("또왔니\n");
+    struct thread *current_thread = thread_current();
+    struct list_elem *e;
+
+    for (e = list_begin(&(current_thread->child)); e != list_end(&(current_thread->child)); e = list_next(e))
+    {
+        struct thread *child_thread = list_entry(e, struct thread, child_elem);
+        printf("못왔겠지1\n");
+        if (child_thread->tid == child_tid)
+		{
+			printf("못왔겠지1\n");
+            return child_thread;
+		}
+    }
+	printf("못왔겠지\n");
+    return NULL;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -254,6 +291,15 @@ void process_exit(void)
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+
+    if (curr->parent)
+    {
+        curr->parent->child_sys_status = curr->sys_status;
+		curr->parent = NULL;
+        sema_up(&curr->wait_sema);
+		list_remove(&curr->child_elem);
+    }
+
 	process_cleanup();
 }
 

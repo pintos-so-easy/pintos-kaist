@@ -106,10 +106,17 @@ struct thread
 	/* mlfqs */
 	int nice; 	
 	int recent_cpu;
-	struct list_elem allelem; 
+	struct list_elem allelem;
 
 	int sys_status;
+	int child_sys_status;
 	struct file *fd_table[64];
+
+	struct semaphore *fork_sema;
+	struct semaphore *wait_sema;
+	struct thread *parent;
+	struct list child;
+	struct list_elem child_elem;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -123,6 +130,7 @@ struct thread
 
 	/* Owned by thread.c. */
 	struct intr_frame tf; /* Information for switching */
+	struct intr_frame pf; /* Information for switching */
 	unsigned magic;		  /* Detects stack overflow. */
 };
 

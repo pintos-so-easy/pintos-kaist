@@ -12,10 +12,13 @@
 #include "filesys/file.h"
 #include "lib/kernel/stdio.h"
 #include "devices/input.h"
+#include "threads/synch.h"
+#include <string.h>
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 bool um_access (struct intr_frame *);
+void check_address(void *addr);
 
 /* System call.
  *
@@ -42,6 +45,8 @@ syscall_init (void) {
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
+
+void check_address(void *addr) { struct thread *cur = thread_current(); if (addr == NULL || is_kernel_vaddr(addr) || pml4_get_page(cur->pml4, addr) == NULL) syscall_exit(-1);}
 
 bool um_access (struct intr_frame *f) {
     return is_user_vaddr(f);
@@ -116,22 +121,27 @@ void syscall_exit (int status){
     thread_exit();
 }
 tid_t syscall_fork (const char *thread_name){
-    
+
+    memcpy(&thread_current()->pf,&thread_current()->tf,sizeof(struct intr_frame));
     tid_t pid = process_fork(thread_name,NULL);
+    sema_down(&get_child_process(pid)->fork_sema);
 
 	return pid;
 }
 int syscall_exec (const char *file){
+    check_address(file);
+    process_exec(file);
 
 	return 0;
 }
 int syscall_wait (pid_t){
-    process_wait(pid_t);
-
-	return 0;
+    tid_t pid = process_wait(pid_t);
+	return pid;
 }
+
 bool syscall_create (const char *file, unsigned initial_size){
     // char lastChar = file[strlen(file)-1];
+    check_address(file);
     if (file == NULL)
         syscall_exit(-1);
     // if (!um_access(file))
@@ -144,11 +154,13 @@ bool syscall_create (const char *file, unsigned initial_size){
         return filesys_create(file, initial_size);
 }
 bool syscall_remove (const char *file){
+    check_address(file);
     if (file == NULL)
         syscall_exit(-1);
 	return filesys_remove(file);
 }
 int syscall_open (const char *file){
+    check_address(file);
     if (file == NULL)
         syscall_exit(-1);
     struct file *open_file;
@@ -174,6 +186,7 @@ int syscall_filesize (int fd){
         return -1;
 }
 int syscall_read (int fd, void *buffer, unsigned length){
+    check_address(buffer);
     if (fd == 0){
         input_getc();
         return length;
@@ -189,6 +202,8 @@ int syscall_read (int fd, void *buffer, unsigned length){
 }
 
 int syscall_write (int fd UNUSED, const void *buffer, unsigned size){
+
+    check_address(buffer);
     if (fd == 1){
         putbuf(buffer,size);
         return size;
