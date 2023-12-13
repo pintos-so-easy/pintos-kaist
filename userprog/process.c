@@ -106,14 +106,16 @@ tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED)
 {
 	/* Clone current thread to new thread.*/
 	struct thread *curr = thread_current();
+	// memcpy(&curr->pf, if_, sizeof(struct intr_frame));
 	tid_t child_tid = thread_create(name,
-						 PRI_DEFAULT, __do_fork, thread_current());
+						 PRI_DEFAULT, __do_fork, curr);
 	if(child_tid == TID_ERROR)
 		return TID_ERROR;
 	struct thread *child = get_child_process(child_tid);
 
 	// printf("%s\n", curr->name);
 	sema_down(&curr->fork_sema);
+	// printf("여기까지\n");
 	return child_tid;
 }
 
@@ -203,7 +205,7 @@ __do_fork(void *aux)
 
 	// struct file **p_fd_table = parent->fd_table;
 	// struct file **c_fd_table = malloc(sizeof(struct file*) * 64);
-
+	
 	for (int i = 2; i < 64; i++) {
 		if (parent->fd_table[i] != NULL) {
 			current->fd_table[i] = file_duplicate(parent->fd_table[i]);
@@ -211,7 +213,7 @@ __do_fork(void *aux)
 			current->fd_table[i] = NULL;
 		}
 	}
-
+	
 	// *current->fd_table = c_fd_table ;
 
 	/* TODO: Your code goes here.
@@ -220,13 +222,13 @@ __do_fork(void *aux)
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 
-	printf("%s\n", parent->name);
+	// printf("%s\n", parent->name);
 
 	// list_push_back(&parent->child,&current->child_elem);
 	// current->parent = parent;
-	printf("%s\n", current->name);
-	process_init();
+	// printf("%s\n", current->name);
 	sema_up(&parent->fork_sema);
+	process_init();
 
 	/* Finally, switch to the newly created process. */
 	if (succ){

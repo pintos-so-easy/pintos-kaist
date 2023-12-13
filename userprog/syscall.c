@@ -67,6 +67,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
         syscall_exit(f->R.rdi);
         break;
     case SYS_FORK:
+        memcpy(&thread_current()->pf, f, sizeof(struct intr_frame));
         f->R.rax = syscall_fork(f->R.rdi);
         break;
     case SYS_EXEC:
@@ -124,7 +125,6 @@ void syscall_exit (int status){
 tid_t syscall_fork (const char *thread_name){
     
     check_address(thread_name);
-    memcpy(&thread_current()->pf, &thread_current()->tf, sizeof(struct intr_frame));
     tid_t pid = process_fork(thread_name,&thread_current()->pf);
 
 	return pid;
