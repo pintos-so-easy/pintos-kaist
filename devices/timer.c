@@ -99,12 +99,6 @@ void timer_sleep(int64_t ticks)
 	thread_sleep(timer_ticks() + ticks);
 }
 
-/* sleep_list --> ready_list */
-void wakeup(struct thread *t)
-{
-	thread_unblock(t);
-}
-
 /* Suspends execution for approximately MS milliseconds. */
 void timer_msleep(int64_t ms)
 {
@@ -129,8 +123,7 @@ void timer_print_stats(void)
 	printf("Timer: %" PRId64 " ticks\n", timer_ticks());
 }
 
-static void
-timer_interrupt(struct intr_frame *args UNUSED)
+static void timer_interrupt(struct intr_frame *args UNUSED)
 {
 	ticks++;
 	thread_tick();
@@ -138,7 +131,6 @@ timer_interrupt(struct intr_frame *args UNUSED)
 	if (thread_mlfqs) 
 	{
         mlfqs_increment();
-
         if (timer_ticks() % 4 == 0)
             mlfqs_recalc_priority();
 

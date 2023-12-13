@@ -9,6 +9,9 @@
 #include "vm/vm.h"
 #endif
 
+// * USERPROG 추가
+#include "include/threads/synch.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
 {
@@ -98,15 +101,30 @@ struct thread
 	struct list_elem elem; /* List element. */
 
 	/* priority scheduling */
-	int init_priority;		
+	int init_priority;				
 	struct lock *wait_on_lock;		
-	struct list donations;				
+	struct list donations;			
 	struct list_elem donation_elem; 
 
 	/* mlfqs */
-	int nice; 	int recent_cpu;
-	struct list_elem allelem; 
+	int nice; 
+	int recent_cpu;
+	struct list_elem allelem;
 
+	struct thread* parent_t; 
+	struct list children_list; 
+	struct list_elem child_elem; 
+
+	struct semaphore sema_exit;
+	struct semaphore sema_wait;
+	struct semaphore sema_fork; 
+	int exit_status;
+
+	/* file descriptor */
+	struct file **fdt;
+	int next_fd;
+	struct file *running_file;
+	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4; /* Page map level 4 */
@@ -118,6 +136,7 @@ struct thread
 
 	/* Owned by thread.c. */
 	struct intr_frame tf; /* Information for switching */
+	struct intr_frame ptf;
 	unsigned magic;		  /* Detects stack overflow. */
 };
 

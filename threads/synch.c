@@ -110,7 +110,6 @@ void sema_up(struct semaphore *sema)
 	ASSERT(sema != NULL);
 
 	old_level = intr_disable();
-
 	if (!list_empty(&sema->waiters))
 	{
 		list_sort(&sema->waiters, compare_thread_priority, NULL);
@@ -145,8 +144,7 @@ void sema_self_test(void)
 }
 
 /* Thread function used by sema_self_test(). */
-static void
-sema_test_helper(void *sema_)
+static void sema_test_helper(void *sema_)
 {
 	struct semaphore *sema = sema_;
 	int i;
@@ -199,7 +197,6 @@ void lock_acquire(struct lock *lock)
 	if (lock->holder != NULL)
 	{
 		curr->wait_on_lock = lock;
-
 		list_insert_ordered(&lock->holder->donations, &curr->donation_elem, compare_donation_priority, NULL);
 		if (!thread_mlfqs)
 			donate_priority();
@@ -241,6 +238,7 @@ void lock_release(struct lock *lock)
 	ASSERT(lock_held_by_current_thread(lock));
 
 	lock->holder = NULL;
+
 	if (!thread_mlfqs)
 	{
 		remove_with_lock(lock);
@@ -306,6 +304,7 @@ void cond_wait(struct condition *cond, struct lock *lock)
 	ASSERT(lock_held_by_current_thread(lock));
 
 	sema_init(&waiter.semaphore, 0);
+
 	list_insert_ordered(&cond->waiters, &waiter.elem, compare_semaphore_priority, NULL);
 	lock_release(lock);
 	sema_down(&waiter.semaphore);
@@ -329,7 +328,9 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
 	if (!list_empty(&cond->waiters))
 	{
 		list_sort(&cond->waiters, compare_semaphore_priority, NULL);
-		sema_up(&list_entry(list_pop_front(&cond->waiters), struct semaphore_elem, elem)->semaphore);
+		sema_up(&list_entry(list_pop_front(&cond->waiters),
+							struct semaphore_elem, elem)
+					 ->semaphore);
 	}
 }
 
@@ -348,7 +349,7 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 		cond_signal(cond, lock);
 }
 
-// -----------create----------- //
+// -----create----- //
 
 bool compare_semaphore_priority(const struct list_elem *a, const struct list_elem *b, void *aux)
 {
@@ -357,6 +358,5 @@ bool compare_semaphore_priority(const struct list_elem *a, const struct list_ele
 
 	struct list_elem *ta = list_begin(&sa->semaphore.waiters);
 	struct list_elem *tb = list_begin(&sb->semaphore.waiters);
-
 	return compare_thread_priority(ta, tb, NULL);
 }
