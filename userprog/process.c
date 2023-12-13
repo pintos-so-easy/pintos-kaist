@@ -86,17 +86,22 @@ struct thread *get_child_process(tid_t pid) {
 	struct thread *cur_thread = thread_current();
   	struct list *child_list = &cur_thread->child;
 	struct list_elem *cur_child = list_begin(child_list);
+	struct thread *cur_t;
 	while (cur_child != list_end(child_list))
-	{
-		struct thread *cur_t = list_entry(cur_child, struct thread, child_elem);
+	{	
+		// printf("333%s\n",cur_t->name);
+		cur_t = list_entry(cur_child, struct thread, child_elem);
 		if (cur_t->tid == pid) {
 			// printf("33333333333%d\n", pid);
+			// printf("111%s\n",cur_t->name);
+			// printf("222%s\n",cur_t->name);
 			return cur_t;
 		}
 		cur_child = list_next(cur_child);
 	}
 	// printf("11111111111%d\n", pid);
-	return NULL;
+	
+	return cur_t;
 }
 
 
@@ -111,7 +116,7 @@ tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED)
 						 PRI_DEFAULT, __do_fork, curr);
 	if(child_tid == TID_ERROR)
 		return TID_ERROR;
-	struct thread *child = get_child_process(child_tid);
+	// struct thread *child = get_child_process(child_tid);
 
 	// printf("%s\n", curr->name);
 	sema_down(&curr->fork_sema);
@@ -302,6 +307,7 @@ int process_wait(tid_t child_tid UNUSED)
 	}
 	sema_down(&child_thread->fork_wait_sema);
 	int exit_status = child_thread->sys_status;
+	// printf("111111%d",exit_status);
 	list_remove(&child_thread->child_elem);
 	return exit_status;
 
