@@ -185,4 +185,7 @@ void mlfqs_increment(void);
 void mlfqs_recalc_priority(void);
 void mlfqs_recalc_recent_cpu(void);
 
+struct thread *find_child_process(tid_t child_tid);
+
+// extern struct list all_list;
 #endif /* threads/thread.h */

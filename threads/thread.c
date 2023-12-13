@@ -552,6 +552,7 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
 	list_init(&t->child);
+	// printf("리스트 초기화");
 	sema_init(&t->fork_sema,0);
 	sema_init(&t->wait_sema,0);
 
@@ -877,4 +878,21 @@ void mlfqs_recalc_priority(void)
 	{
         mlfqs_priority(list_entry(tmp, struct thread, allelem));
     }
+}
+
+struct thread *find_child_process(tid_t child_tid)
+{	
+	struct thread *current_thread = thread_current();
+    struct list_elem *e;
+	struct thread *child_thread;
+    for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
+		{	
+			child_thread = list_entry(e, struct thread, allelem);
+		
+			if (child_thread->tid == child_tid)
+			{
+				return child_thread;
+			}
+		}
+    return NULL;
 }

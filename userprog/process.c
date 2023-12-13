@@ -27,7 +27,6 @@ static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
 static void __do_fork(void *);
-struct thread *get_child_process(tid_t child_tid);
 int process_wait_child(tid_t child_pid);
 
 
@@ -65,6 +64,12 @@ tid_t process_create_initd(const char *file_name)
 	tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page(fn_copy);
+	// printf("22233333333333333%d\n", thread_current()->tid);
+	// printf("222222222222222222%d\n", tid);
+	struct thread *child_thread = find_child_process(tid);
+	printf("11111111111111 %s, %s, %p\n", thread_current()->name, child_thread->name, &child_thread->child_elem );
+	list_push_back(&thread_current()->child, &child_thread->child_elem);
+
 	return tid;
 }
 
@@ -244,13 +249,11 @@ int process_exec(void *f_name)
 
 int process_wait(tid_t child_tid UNUSED)
 {	
-	// while(1) 
-	// return -1;
 
 	printf("들어왔니");
 	struct thread *child_thread = get_child_process(child_tid);
-    if (child_thread == NULL)
-        return -1;
+    // if (child_thread == NULL)
+        // return -1;
 	
 	// sema_down(&child_thread->wait_sema);
 
@@ -261,25 +264,23 @@ int process_wait(tid_t child_tid UNUSED)
 	return -1;
 }
 
+
 struct thread *get_child_process(tid_t child_tid)
 {
 
-	printf("또왔니\n");
     struct thread *current_thread = thread_current();
     struct list_elem *e;
+	struct thread *child_thread;
 
     for (e = list_begin(&(current_thread->child)); e != list_end(&(current_thread->child)); e = list_next(e))
-    {
-        struct thread *child_thread = list_entry(e, struct thread, child_elem);
-        printf("못왔겠지1\n");
-        if (child_thread->tid == child_tid)
-		{
-			printf("못왔겠지1\n");
-            return child_thread;
+    {	
+        child_thread = list_entry(e, struct thread, child_elem);
+
+		if (child_thread->tid == child_tid ) {
+			return child_thread;
 		}
-    }
-	printf("못왔겠지\n");
-    return NULL;
+	}
+	return NULL;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
