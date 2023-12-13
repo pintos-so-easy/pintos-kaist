@@ -10,6 +10,7 @@
         "string_view": "c",
         "initializer_list": "c",
         "utility": "c",
-        "console.h": "c"
+        "console.h": "c",
+        "typeinfo": "c"
     },
 }

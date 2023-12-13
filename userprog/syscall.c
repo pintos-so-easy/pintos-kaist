@@ -12,10 +12,14 @@
 #include "filesys/file.h"
 #include "lib/kernel/stdio.h"
 #include "devices/input.h"
+#include "threads/palloc.h"
+#include <string.h>
+#include "lib/string.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 bool um_access (struct intr_frame *);
+void check_address(void *addr);
 
 /* System call.
  *
@@ -29,6 +33,8 @@ bool um_access (struct intr_frame *);
 #define MSR_STAR 0xc0000081         /* Segment selector msr */
 #define MSR_LSTAR 0xc0000082        /* Long mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
+
+void check_address(void *addr) { struct thread *cur = thread_current(); if (addr == NULL || is_kernel_vaddr(addr) || pml4_get_page(cur->pml4, addr) == NULL) syscall_exit(-1); }
 
 void
 syscall_init (void) {
@@ -117,21 +123,42 @@ void syscall_exit (int status){
 }
 tid_t syscall_fork (const char *thread_name){
     
-    tid_t pid = process_fork(thread_name,NULL);
+    check_address(thread_name);
+    memcpy(&thread_current()->pf, &thread_current()->tf, sizeof(struct intr_frame));
+    tid_t pid = process_fork(thread_name,&thread_current()->pf);
 
 	return pid;
 }
 int syscall_exec (const char *file){
 
-	return 0;
-}
-int syscall_wait (pid_t){
-    process_wait(pid_t);
+    
+	check_address(file);
 
-	return 0;
+	int file_size = strlen(file) + 1;
+	char *fn_copy = palloc_get_page(PAL_ZERO);
+	if (!fn_copy) 
+	{
+		syscall_exit(-1);
+		return -1;
+	}
+
+	strlcpy(fn_copy, file, file_size);
+	if (process_exec(fn_copy) == -1) 
+	{
+		syscall_exit(-1);
+		return -1;
+	}
+}
+
+
+int syscall_wait (pid_t){
+
+    return process_wait(pid_t);
+
 }
 bool syscall_create (const char *file, unsigned initial_size){
     // char lastChar = file[strlen(file)-1];
+    check_address(file);
     if (file == NULL)
         syscall_exit(-1);
     // if (!um_access(file))
@@ -144,11 +171,13 @@ bool syscall_create (const char *file, unsigned initial_size){
         return filesys_create(file, initial_size);
 }
 bool syscall_remove (const char *file){
+    check_address(file);
     if (file == NULL)
         syscall_exit(-1);
 	return filesys_remove(file);
 }
 int syscall_open (const char *file){
+    check_address(file);
     if (file == NULL)
         syscall_exit(-1);
     struct file *open_file;
@@ -174,6 +203,7 @@ int syscall_filesize (int fd){
         return -1;
 }
 int syscall_read (int fd, void *buffer, unsigned length){
+    check_address(buffer);
     if (fd == 0){
         input_getc();
         return length;
@@ -189,6 +219,7 @@ int syscall_read (int fd, void *buffer, unsigned length){
 }
 
 int syscall_write (int fd UNUSED, const void *buffer, unsigned size){
+    check_address(buffer);
     if (fd == 1){
         putbuf(buffer,size);
         return size;

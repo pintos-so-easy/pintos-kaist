@@ -218,6 +218,8 @@ tid_t thread_create(const char *name, int priority,
 	init_thread(t, name, priority);
 	tid = t->tid = allocate_tid();
 
+	// printf("%d",tid);
+
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
 	t->tf.rip = (uintptr_t)kernel_thread;
@@ -229,7 +231,12 @@ tid_t thread_create(const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	sema_init(&t->fork_sema,0);
+	sema_init(&t->fork_wait_sema,0);
+
 	list_push_back(&all_list, &t->allelem);
+	list_push_back(&thread_current()->child,&t->child_elem);
+	t->parent = thread_current();
 
 	/* Add to run queue. */
 	thread_unblock(t);
@@ -352,6 +359,7 @@ struct thread *
 thread_current(void)
 {
 	struct thread *t = running_thread();
+	// printf("%s\n", t->name);
 
 	/* Make sure T is really a thread.
 	   If either of these assertions fire, then your thread may
@@ -551,6 +559,7 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->init_priority = priority;
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
+	list_init(&t->child);
 
 	/* mlfqs */
 	t->nice = NICE_DEFAULT;

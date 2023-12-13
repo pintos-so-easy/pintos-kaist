@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
+#include "filesys/file.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -101,7 +103,9 @@ struct thread
 	int init_priority;		
 	struct lock *wait_on_lock;		
 	struct list donations;				
+	struct list child;				
 	struct list_elem donation_elem; 
+	struct list_elem child_elem; 
 
 	/* mlfqs */
 	int nice; 	
@@ -109,7 +113,13 @@ struct thread
 	struct list_elem allelem; 
 
 	int sys_status;
+	int exit_status;
 	struct file *fd_table[64];
+
+	struct semaphore fork_sema;
+	struct semaphore fork_wait_sema;
+
+	struct thread *parent;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -122,6 +132,7 @@ struct thread
 #endif
 
 	/* Owned by thread.c. */
+	struct intr_frame pf; /* Information for switching */
 	struct intr_frame tf; /* Information for switching */
 	unsigned magic;		  /* Detects stack overflow. */
 };

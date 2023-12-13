@@ -244,7 +244,9 @@ run_task (char **argv) {
 	if (thread_tests){
 		run_test (task);
 	} else {
+		// printf ("이닛 전\n");
 		process_wait (process_create_initd (task));
+		// printf ("웨잇 후\n");
 	}
 #else
 	run_test (task);
